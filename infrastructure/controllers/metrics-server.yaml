@@ -1,3 +1,4 @@
+# No namespace creation needed - kube-system exists
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: HelmRepository
 metadata:
@@ -14,7 +15,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h
-  targetNamespace: kube-system # Deploy to existing kube-system
+  targetNamespace: kube-system
   install:
     createNamespace: false # kube-system already exists
   chart:
