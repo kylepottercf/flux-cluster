@@ -7,7 +7,7 @@ apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: HelmRepository
 metadata:
   name: cert-manager
-  namespace: flux-system
+  namespace: flux-system # Repository in flux-system
 spec:
   interval: 1h
   url: https://charts.jetstack.io
@@ -16,10 +16,12 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: cert-manager
-  namespace: flux-system
+  namespace: flux-system # HelmRelease managed by flux-system
 spec:
   interval: 1h
-  targetNamespace: cert-manager
+  targetNamespace: cert-manager # Deploys to cert-manager namespace
+  install:
+    createNamespace: false # We're creating it above
   chart:
     spec:
       chart: cert-manager
