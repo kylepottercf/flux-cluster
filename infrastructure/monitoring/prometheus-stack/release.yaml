@@ -5,157 +5,87 @@ metadata:
   namespace: monitoring
 spec:
   interval: 10m
+  timeout: 15m # Increase timeout from default 5m
   chart:
     spec:
       chart: kube-prometheus-stack
-      version: "61.x" # Use latest stable version
+      version: "61.9.0"
       sourceRef:
         kind: HelmRepository
         name: prometheus-community
         namespace: monitoring
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+    # Install CRDs separately to avoid timeout
+    skipCRDs: false
+    timeout: 15m # Increase install timeout
+  upgrade:
+    remediation:
+      retries: 3
+    timeout: 15m
+  # Start with minimal values - add more later
   values:
-    # Grafana Configuration
+    # Reduce initial resource requirements
+    defaultRules:
+      create: false # Skip rules initially
+
     grafana:
       enabled: true
-
-      existingSecret: "grafana-admin"
-      userKey: admin-user
-      passwordKey: admin-password
-
-      # Persistence for dashboards
+      adminPassword: "changeme123!"
       persistence:
-        enabled: true
-        size: 5Gi
-        accessModes:
-          - ReadWriteOnce
+        enabled: false # Disable initially
+      resources:
+        limits:
+          cpu: 200m
+          memory: 256Mi
+        requests:
+          cpu: 50m
+          memory: 128Mi
 
-      # Service configuration
-      service:
-        type: ClusterIP
-        port: 80
-
-      # Ingress configuration
-      ingress:
-        enabled: true
-        ingressClassName: nginx
-        annotations:
-          cert-manager.io/cluster-issuer: "letsencrypt-prod"
-          nginx.ingress.kubernetes.io/ssl-redirect: "true"
-        hosts:
-          - grafana.yourdomain.com # Change to your domain
-        tls:
-          - secretName: grafana-tls
-            hosts:
-              - grafana.yourdomain.com # Change to your domain
-
-      # Additional datasources
-      additionalDataSources:
-        - name: Loki
-          type: loki
-          url: http://loki:3100 # If you have Loki installed
-          access: proxy
-          isDefault: false
-
-      # Sidecar for loading dashboards
-      sidecar:
-        dashboards:
-          enabled: true
-          searchNamespace: ALL
-          provider:
-            foldersFromFilesStructure: true
-        datasources:
-          enabled: true
-          searchNamespace: ALL
-
-      # Pre-installed plugins
-      plugins:
-        - grafana-piechart-panel
-        - grafana-clock-panel
-        - grafana-simple-json-datasource
-
-    # Prometheus Configuration
     prometheus:
       enabled: true
-
       prometheusSpec:
-        # Resource limits
+        retention: 7d # Reduce retention
         resources:
           requests:
-            memory: 400Mi
-            cpu: 100m
+            memory: 200Mi
+            cpu: 50m
           limits:
-            memory: 2Gi
-            cpu: 1000m
+            memory: 500Mi
+            cpu: 200m
+        # Disable persistent storage initially
+        storageSpec: {}
 
-        # Retention
-        retention: 30d
-        retentionSize: "10GB"
-
-        # Storage
-        storageSpec:
-          volumeClaimTemplate:
-            spec:
-              accessModes: ["ReadWriteOnce"]
-              resources:
-                requests:
-                  storage: 20Gi
-
-        # Service monitors - auto-discover services
-        serviceMonitorSelectorNilUsesHelmValues: false
-        serviceMonitorSelector: {}
-        podMonitorSelectorNilUsesHelmValues: false
-        podMonitorSelector: {}
-        ruleSelectorNilUsesHelmValues: false
-        ruleSelector: {}
-
-    # AlertManager Configuration
     alertmanager:
-      enabled: true
+      enabled: false # Disable initially
 
-      alertmanagerSpec:
-        storage:
-          volumeClaimTemplate:
-            spec:
-              accessModes: ["ReadWriteOnce"]
-              resources:
-                requests:
-                  storage: 5Gi
-
-        # Example Slack configuration (optional)
-        # config:
-        #   global:
-        #     slack_api_url: 'YOUR_SLACK_WEBHOOK_URL'
-        #   route:
-        #     group_by: ['alertname', 'cluster', 'service']
-        #     group_wait: 10s
-        #     group_interval: 10s
-        #     repeat_interval: 12h
-        #     receiver: 'slack'
-        #   receivers:
-        #   - name: 'slack'
-        #     slack_configs:
-        #     - channel: '#alerts'
-
-    # Node Exporter for hardware metrics
+    # Disable most exporters initially
     nodeExporter:
       enabled: true
-
-    # Kube State Metrics
     kubeStateMetrics:
-      enabled: true
-
-    # Prometheus Operator
+      enabled: false
     prometheusOperator:
       enabled: true
+      resources:
+        limits:
+          cpu: 200m
+          memory: 256Mi
+        requests:
+          cpu: 50m
+          memory: 128Mi
 
-    # Disable components you don't need
+    # Disable other components
     kubeApiServer:
-      enabled: true
+      enabled: false
     kubeControllerManager:
-      enabled: false # Often not accessible in managed k8s
+      enabled: false
     kubeScheduler:
-      enabled: false # Often not accessible in managed k8s
+      enabled: false
     kubeProxy:
-      enabled: true
+      enabled: false
     kubeEtcd:
-      enabled: false # Often not accessible in managed k8s
+      enabled: false
+    coreDns:
+      enabled: false
